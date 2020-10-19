@@ -16,7 +16,6 @@ import com.onarandombox.MultiverseCore.commands.HelpCommand;
 import com.onarandombox.MultiverseNetherPortals.commands.LinkCommand;
 import com.onarandombox.MultiverseNetherPortals.commands.ShowLinkCommand;
 import com.onarandombox.MultiverseNetherPortals.commands.UnlinkCommand;
-import com.onarandombox.MultiverseNetherPortals.enums.PortalType;
 import com.onarandombox.MultiverseNetherPortals.listeners.MVNPCoreListener;
 import com.onarandombox.MultiverseNetherPortals.listeners.MVNPEntityListener;
 import com.onarandombox.MultiverseNetherPortals.listeners.MVNPPlayerListener;
@@ -24,6 +23,7 @@ import com.onarandombox.MultiverseNetherPortals.listeners.MVNPPluginListener;
 import com.onarandombox.MultiversePortals.MultiversePortals;
 import com.onarandombox.commandhandler.CommandHandler;
 import org.bukkit.Location;
+import org.bukkit.PortalType;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -110,7 +110,9 @@ public class MultiverseNetherPortals extends JavaPlugin implements MVPlugin {
         this.endLinkMap = new HashMap<String, String>();
 
         this.setUsingBounceBack(this.isUsingBounceBack());
-
+        this.setTeleportingEntities(this.isTeleportingEntities());
+        this.setSendingNoDestinationMessage(this.isSendingNoDestinationMessage());
+        this.setSendingDisabledPortalMessage(this.isSendingDisabledPortalMessage());
         this.setNetherPrefix(this.MVNPconfiguration.getString("netherportals.name.prefix", this.getNetherPrefix()));
         this.setNetherSuffix(this.MVNPconfiguration.getString("netherportals.name.suffix", this.getNetherSuffix()));
 
@@ -211,7 +213,7 @@ public class MultiverseNetherPortals extends JavaPlugin implements MVPlugin {
     public String getWorldLink(String fromWorld, PortalType type) {
         if (type == PortalType.NETHER) {
             return this.linkMap.get(fromWorld);
-        } else if (type == PortalType.END) {
+        } else if (type == PortalType.ENDER) {
             return this.endLinkMap.get(fromWorld);
         }
 
@@ -229,7 +231,7 @@ public class MultiverseNetherPortals extends JavaPlugin implements MVPlugin {
     public boolean addWorldLink(String from, String to, PortalType type) {
         if (type == PortalType.NETHER) {
             this.linkMap.put(from, to);
-        } else if (type == PortalType.END) {
+        } else if (type == PortalType.ENDER) {
             this.endLinkMap.put(from, to);
         } else {
             return false;
@@ -243,7 +245,7 @@ public class MultiverseNetherPortals extends JavaPlugin implements MVPlugin {
     public void removeWorldLink(String from, String to, PortalType type) {
         if (type == PortalType.NETHER) {
             this.linkMap.remove(from);
-        } else if (type == PortalType.END) {
+        } else if (type == PortalType.ENDER) {
             this.endLinkMap.remove(from);
         } else {
             return;
@@ -269,6 +271,30 @@ public class MultiverseNetherPortals extends JavaPlugin implements MVPlugin {
 
     public void setUsingBounceBack(boolean useBounceBack) {
         this.MVNPconfiguration.set("bounceback", useBounceBack);
+    }
+
+    public boolean isTeleportingEntities() {
+        return this.MVNPconfiguration.getBoolean("teleport_entities", true);
+    }
+
+    public void setTeleportingEntities(boolean teleportingEntities) {
+        this.MVNPconfiguration.set("teleport_entities", teleportingEntities);
+    }
+
+    public boolean isSendingDisabledPortalMessage() {
+        return this.MVNPconfiguration.getBoolean("send_disabled_portal_message", true);
+    }
+
+    public void setSendingDisabledPortalMessage(boolean sendDisabledPortalMessage) {
+        this.MVNPconfiguration.set("send_disabled_portal_message", sendDisabledPortalMessage);
+    }
+
+    public boolean isSendingNoDestinationMessage() {
+        return this.MVNPconfiguration.getBoolean("send_no_destination_message", true);
+    }
+
+    public void setSendingNoDestinationMessage(boolean sendNoDestinationMessage) {
+        this.MVNPconfiguration.set("send_no_destination_message", sendNoDestinationMessage);
     }
 
     public boolean isHandledByNetherPortals(Location l) {
@@ -317,26 +343,37 @@ public class MultiverseNetherPortals extends JavaPlugin implements MVPlugin {
     @Override
     public String dumpVersionInfo(String buffer) {
         buffer += logAndAddToPasteBinBuffer("Multiverse-NetherPortals Version: " + this.getDescription().getVersion());
-        buffer += logAndAddToPasteBinBuffer("Bukkit Version: " + this.getServer().getVersion());
-        buffer += logAndAddToPasteBinBuffer("World links: " + this.getWorldLinks());
-        buffer += logAndAddToPasteBinBuffer("Nether Prefix: " + netherPrefix);
-        buffer += logAndAddToPasteBinBuffer("Nether Suffix: " + netherSuffix);
+        buffer += logAndAddToPasteBinBuffer("Nether Prefix: " + this.getNetherPrefix());
+        buffer += logAndAddToPasteBinBuffer("Nether Suffix: " + this.getNetherSuffix());
+        buffer += logAndAddToPasteBinBuffer("End Prefix: " + this.getEndPrefix());
+        buffer += logAndAddToPasteBinBuffer("End Suffix: " + this.getEndSuffix());
+        buffer += logAndAddToPasteBinBuffer("Nether Links: " + this.getWorldLinks());
+        buffer += logAndAddToPasteBinBuffer("End Links: " + this.getEndWorldLinks());
+        buffer += logAndAddToPasteBinBuffer("Bounceback: " + this.isUsingBounceBack());
+        buffer += logAndAddToPasteBinBuffer("Teleport Entities: " + this.isTeleportingEntities());
+        buffer += logAndAddToPasteBinBuffer("Send Disabled Portal Message: " + this.isSendingDisabledPortalMessage());
+        buffer += logAndAddToPasteBinBuffer("Send No Destination Message: " + this.isSendingNoDestinationMessage());
         buffer += logAndAddToPasteBinBuffer("Special Code: FRN001");
         return buffer;
     }
 
     private String logAndAddToPasteBinBuffer(String string) {
         this.log(Level.INFO, string);
-        return "[Multiverse-NetherPortals] " + string + "\n";
+        return "[Multiverse-NetherPortals] " + string + '\n';
     }
 
     public String getVersionInfo() {
-        StringBuilder buffer = new StringBuilder();
-        buffer.append("[Multiverse-NetherPortals] Multiverse-NetherPortals Version: ").append(this.getDescription().getVersion()).append('\n');
-        buffer.append("[Multiverse-NetherPortals] World links: ").append(this.getWorldLinks()).append('\n');
-        buffer.append("[Multiverse-NetherPortals] Nether Prefix: ").append(netherPrefix).append('\n');
-        buffer.append("[Multiverse-NetherPortals] Nether Suffix: ").append(netherSuffix).append('\n');
-        buffer.append("[Multiverse-NetherPortals] Special Code: ").append("FRN001").append('\n');
-        return buffer.toString();
+        return "[Multiverse-NetherPortals] Multiverse-NetherPortals Version: " + this.getDescription().getVersion() + '\n'
+                + "[Multiverse-NetherPortals] Nether Prefix: " + this.getNetherPrefix() + '\n'
+                + "[Multiverse-NetherPortals] Nether Suffix: " + this.getNetherSuffix() + '\n'
+                + "[Multiverse-NetherPortals] End Prefix: " + this.getEndPrefix() + '\n'
+                + "[Multiverse-NetherPortals] End Suffix: " + this.getEndSuffix() + '\n'
+                + "[Multiverse-NetherPortals] Nether Links: " + this.getWorldLinks() + '\n'
+                + "[Multiverse-NetherPortals] End Links: " + this.getEndWorldLinks() + '\n'
+                + "[Multiverse-NetherPortals] Bounceback: " + this.isUsingBounceBack() + '\n'
+                + "[Multiverse-NetherPortals] Teleport Entities: " + this.isTeleportingEntities() + '\n'
+                + "[Multiverse-NetherPortals] Send Disabled Portal Message: " + this.isSendingDisabledPortalMessage() + '\n'
+                + "[Multiverse-NetherPortals] Send No Destination Message: " + this.isSendingNoDestinationMessage() + '\n'
+                + "[Multiverse-NetherPortals] Special Code: " + "FRN001" + '\n';
     }
 }
